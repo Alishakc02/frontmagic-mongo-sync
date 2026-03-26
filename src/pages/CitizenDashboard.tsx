@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { LayoutDashboard, FileText, Bell, User, PlusCircle } from "lucide-react";
+import { LayoutDashboard, FileText, Bell, User, PlusCircle, Upload } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import StatCard from "@/components/StatCard";
 import { Button } from "@/components/ui/button";
@@ -31,9 +31,9 @@ const statusColors: Record<string, string> = {
 const crimeTypes = ["Theft", "Fraud", "Assault", "Vandalism", "Cybercrime", "Drug Offense", "Robbery", "Other"];
 
 const initialReports = [
-  { id: "1", crime_id: "CR-2025-001", crime_type: "Theft", location: "Kathmandu", status: "Pending", description: "Wallet stolen at bus stop", created_at: "2025-01-15T10:00:00Z", updated_at: "2025-01-15T10:00:00Z" },
-  { id: "2", crime_id: "CR-2025-002", crime_type: "Fraud", location: "Pokhara", status: "Under Investigation", description: "Online shopping fraud", created_at: "2025-01-20T14:00:00Z", updated_at: "2025-01-22T09:00:00Z" },
-  { id: "3", crime_id: "CR-2025-003", crime_type: "Vandalism", location: "Lalitpur", status: "Resolved", description: "Car window smashed", created_at: "2025-02-01T08:00:00Z", updated_at: "2025-02-10T16:00:00Z" },
+  { id: "1", crime_id: "CR-2025-001", crime_type: "Theft", location: "Kathmandu", status: "Pending", description: "Wallet stolen at bus stop", created_at: "2025-01-15T10:00:00Z", updated_at: "2025-01-15T10:00:00Z", evidence: null },
+  { id: "2", crime_id: "CR-2025-002", crime_type: "Fraud", location: "Pokhara", status: "Under Investigation", description: "Online shopping fraud", created_at: "2025-01-20T14:00:00Z", updated_at: "2025-01-22T09:00:00Z", evidence: null },
+  { id: "3", crime_id: "CR-2025-003", crime_type: "Vandalism", location: "Lalitpur", status: "Resolved", description: "Car window smashed", created_at: "2025-02-01T08:00:00Z", updated_at: "2025-02-10T16:00:00Z", evidence: null },
 ];
 
 const CitizenDashboard = () => {
@@ -44,20 +44,27 @@ const CitizenDashboard = () => {
   const { user, profile, updateProfile } = useAuth();
 
   const [reports, setReports] = useState(initialReports);
-  const [crimeType, setCrimeType] = useState("");
-  const [crimeLocation, setCrimeLocation] = useState("");
-  const [crimeDate, setCrimeDate] = useState("");
-  const [crimeDescription, setCrimeDescription] = useState("");
-  const [suspectName, setSuspectName] = useState("");
-  const [suspectDescription, setSuspectDescription] = useState("");
-  const [submitting, setSubmitting] = useState(false);
 
-  const [profileName, setProfileName] = useState(profile?.full_name || "");
-  const [profileEmail, setProfileEmail] = useState(profile?.email || "");
-  const [profilePhone, setProfilePhone] = useState(profile?.phone || "");
-  const [profileAddress, setProfileAddress] = useState(profile?.address || "");
+  // Crime report form state
+  const [crimeType, setCrimeType] = useState<string>("");
+  const [crimeLocation, setCrimeLocation] = useState<string>("");
+  const [crimeDate, setCrimeDate] = useState<string>("");
+  const [crimeDescription, setCrimeDescription] = useState<string>("");
+  const [suspectName, setSuspectName] = useState<string>("");
+  const [suspectDescription, setSuspectDescription] = useState<string>("");
+  const [submitting, setSubmitting] = useState<boolean>(false);
+  const [evidence, setEvidence] = useState<File | null>(null);
 
-  if (!user) { navigate("/login"); return null; }
+  // Profile form state
+  const [profileName, setProfileName] = useState<string>(profile?.full_name ?? "");
+  const [profileEmail, setProfileEmail] = useState<string>(profile?.email ?? "");
+  const [profilePhone, setProfilePhone] = useState<string>(profile?.phone ?? "");
+  const [profileAddress, setProfileAddress] = useState<string>(profile?.address ?? "");
+
+  if (!user) {
+    navigate("/login");
+    return null;
+  }
 
   const getView = () => {
     if (currentPath === "/citizen/report") return "report";
@@ -68,13 +75,23 @@ const CitizenDashboard = () => {
   };
   const view = getView();
 
-  const resetForm = () => { setCrimeType(""); setCrimeLocation(""); setCrimeDate(""); setCrimeDescription(""); setSuspectName(""); setSuspectDescription(""); };
+  const resetForm = () => {
+    setCrimeType("");
+    setCrimeLocation("");
+    setCrimeDate("");
+    setCrimeDescription("");
+    setSuspectName("");
+    setSuspectDescription("");
+    setEvidence(null);
+  };
 
   const handleSubmitReport = (e: React.FormEvent) => {
     e.preventDefault();
     if (!crimeType) { toast({ title: "Validation Error", description: "Please select a crime type.", variant: "destructive" }); return; }
     if (!crimeDescription.trim()) { toast({ title: "Validation Error", description: "Please provide a description.", variant: "destructive" }); return; }
+
     setSubmitting(true);
+
     const newReport = {
       id: String(reports.length + 1),
       crime_id: `CR-2025-${String(reports.length + 1).padStart(3, "0")}`,
@@ -82,9 +99,11 @@ const CitizenDashboard = () => {
       location: crimeLocation || "Not specified",
       status: "Pending",
       description: crimeDescription,
+      evidence: evidence || null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
+
     setReports([newReport, ...reports]);
     resetForm();
     toast({ title: "Report Submitted", description: "Your crime report has been submitted and is pending review." });
@@ -93,7 +112,10 @@ const CitizenDashboard = () => {
   };
 
   const handleSaveProfile = () => {
-    if (!profileName.trim() || !profileEmail.trim()) { toast({ title: "Validation Error", description: "Name and email are required.", variant: "destructive" }); return; }
+    if (!profileName.trim() || !profileEmail.trim()) {
+      toast({ title: "Validation Error", description: "Name and email are required.", variant: "destructive" });
+      return;
+    }
     updateProfile({ full_name: profileName, email: profileEmail, phone: profilePhone, address: profileAddress });
     toast({ title: "Profile Updated", description: "Your profile has been saved." });
   };
@@ -105,13 +127,15 @@ const CitizenDashboard = () => {
   const ReportsTable = ({ data }: { data: typeof reports }) => (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
-        <thead><tr className="border-b border-border">
-          <th className="text-left p-4 font-medium text-muted-foreground">Case ID</th>
-          <th className="text-left p-4 font-medium text-muted-foreground">Type</th>
-          <th className="text-left p-4 font-medium text-muted-foreground">Location</th>
-          <th className="text-left p-4 font-medium text-muted-foreground">Date</th>
-          <th className="text-left p-4 font-medium text-muted-foreground">Status</th>
-        </tr></thead>
+        <thead>
+          <tr className="border-b border-border">
+            <th className="text-left p-4 font-medium text-muted-foreground">Case ID</th>
+            <th className="text-left p-4 font-medium text-muted-foreground">Type</th>
+            <th className="text-left p-4 font-medium text-muted-foreground">Location</th>
+            <th className="text-left p-4 font-medium text-muted-foreground">Date</th>
+            <th className="text-left p-4 font-medium text-muted-foreground">Status</th>
+          </tr>
+        </thead>
         <tbody>
           {data.map((r) => (
             <tr key={r.id} className="border-b border-border last:border-0 hover:bg-muted/50 transition-colors">
@@ -128,6 +152,7 @@ const CitizenDashboard = () => {
     </div>
   );
 
+  // ----------------------- Render Views -----------------------
   if (view === "report") {
     return (
       <DashboardLayout role="citizen" navItems={navItems}>
@@ -138,25 +163,56 @@ const CitizenDashboard = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Crime Type *</Label>
-                <Select value={crimeType} onValueChange={setCrimeType}>
+                <Select value={crimeType || undefined} onValueChange={setCrimeType}>
                   <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
                   <SelectContent>{crimeTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2"><Label>Date & Time</Label><Input type="datetime-local" value={crimeDate} onChange={e => setCrimeDate(e.target.value)} /></div>
+              <div className="space-y-2">
+                <Label>Date & Time</Label>
+                <Input type="datetime-local" value={crimeDate} onChange={e => setCrimeDate(e.target.value)} />
+              </div>
             </div>
-            <div className="space-y-2"><Label>Location</Label><Input placeholder="Enter location" value={crimeLocation} onChange={e => setCrimeLocation(e.target.value)} /></div>
-            <div className="space-y-2"><Label>Description *</Label><Textarea placeholder="Describe the incident..." rows={4} value={crimeDescription} onChange={e => setCrimeDescription(e.target.value)} /></div>
+            <div className="space-y-2">
+              <Label>Location</Label>
+              <Input placeholder="Enter location" value={crimeLocation} onChange={e => setCrimeLocation(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Description *</Label>
+              <Textarea placeholder="Describe the incident..." rows={4} value={crimeDescription} onChange={e => setCrimeDescription(e.target.value)} />
+            </div>
           </div>
+
+          {/* Evidence Upload */}
+          <div className="space-y-2">
+            <Label>Upload Evidence</Label>
+            <div className="border p-4 rounded-lg flex items-center gap-4">
+              <Upload className="w-6 h-6 text-muted-foreground" />
+              <Input type="file" accept="image/*,application/pdf" onChange={(e) => setEvidence(e.target.files?.[0] || null)} />
+              {evidence && <span className="text-sm truncate">{evidence.name}</span>}
+            </div>
+          </div>
+
+          {/* Suspect Info */}
           <div className="bg-card rounded-lg p-6 card-shadow space-y-4">
             <h3 className="font-display font-semibold text-foreground">Suspect Information (Optional)</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2"><Label>Suspect Name</Label><Input placeholder="If known" value={suspectName} onChange={e => setSuspectName(e.target.value)} /></div>
-              <div className="space-y-2"><Label>Description</Label><Input placeholder="Physical features, clothing..." value={suspectDescription} onChange={e => setSuspectDescription(e.target.value)} /></div>
+              <div className="space-y-2">
+                <Label>Suspect Name</Label>
+                <Input placeholder="If known" value={suspectName} onChange={e => setSuspectName(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Description</Label>
+                <Input placeholder="Physical features, clothing..." value={suspectDescription} onChange={e => setSuspectDescription(e.target.value)} />
+              </div>
             </div>
           </div>
+
+          {/* Submit Buttons */}
           <div className="flex gap-3">
-            <Button type="submit" className="bg-accent text-accent-foreground hover:bg-accent/80" disabled={submitting}>{submitting ? "Submitting..." : "Submit Report"}</Button>
+            <Button type="submit" className="bg-accent text-accent-foreground hover:bg-accent/80" disabled={submitting}>
+              {submitting ? "Submitting..." : "Submit Report"}
+            </Button>
             <Button type="button" variant="outline" onClick={() => navigate("/citizen")}>Cancel</Button>
           </div>
         </form>
